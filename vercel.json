@@ -4,11 +4,6 @@
   "outputDirectory": "dist",
   "installCommand": "npm install",
   "devCommand": "npm run dev",
-  "functions": {
-    "app/api/**/*.js": {
-      "runtime": "nodejs18.x"
-    }
-  },
   "rewrites": [
     {
       "source": "/((?!api/).*)",
