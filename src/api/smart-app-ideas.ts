@@ -2,7 +2,7 @@ import { supabase } from '@/lib/supabase';
 import { SmartAppIdea, SmartAppIdeaReport, SmartAppIdeaStats } from '@/types/smart-app-ideas';
 
 // Get top Smart App Ideas opportunities
-export async function getSmartAppIdeasOpportunities(limit: number = 15): Promise<SmartAppIdea[]> {
+export async function getSmartAppIdeasOpportunities(limit: number = 150): Promise<SmartAppIdea[]> {
   try {
     const { data, error } = await supabase
       .from('startup_ideas')
