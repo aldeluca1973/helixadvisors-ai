@@ -1,0 +1,22 @@
+CREATE TABLE startup_ideas (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    title TEXT NOT NULL,
+    description TEXT,
+    source_url TEXT,
+    source_platform TEXT,
+    discovered_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    category TEXT,
+    industry TEXT,
+    business_model TEXT,
+    target_market TEXT,
+    overall_score DECIMAL(5,2) DEFAULT 0,
+    market_score DECIMAL(5,2) DEFAULT 0,
+    competition_score DECIMAL(5,2) DEFAULT 0,
+    development_score DECIMAL(5,2) DEFAULT 0,
+    roi_score DECIMAL(5,2) DEFAULT 0,
+    is_special_mention BOOLEAN DEFAULT FALSE,
+    status TEXT DEFAULT 'pending',
+    processed_at TIMESTAMP WITH TIME ZONE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
