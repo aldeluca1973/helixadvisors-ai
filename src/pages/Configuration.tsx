@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { toast } from '@/hooks/use-toast'
+import { GiftTierManager } from '@/components/admin/GiftTierManager'
 import {
   Sliders,
   Database,
@@ -24,7 +25,8 @@ import {
   TestTube,
   Shield,
   Calendar,
-  History
+  History,
+  Gift
 } from 'lucide-react'
 
 export function Configuration() {
@@ -300,38 +302,30 @@ export function Configuration() {
     setSavingTimeRange(true)
     
     try {
-      // Convert time range to days
-      const timeRangeToDays: { [key: string]: number } = {
-        '1_week': 7,
-        '1_month': 30,
-        '3_months': 90,
-        '6_months': 180,
-        '1_year': 365
+      let days = 30
+      switch (value) {
+        case '1_week': days = 7; break;
+        case '1_month': days = 30; break;
+        case '3_months': days = 90; break;
+        case '6_months': days = 180; break;
+        case '1_year': days = 365; break;
       }
       
-      const days = timeRangeToDays[value] || 30
-      
-      // Update or insert the historical time range setting
       const { error } = await supabase
         .from('scoring_weights')
-        .upsert({
-          weight_name: 'historical_time_range_days',
-          weight_value: days,
-          description: 'Number of days to look back for app idea discovery',
-          is_active: true,
-          updated_at: new Date().toISOString()
-        })
+        .update({ weight_value: days })
+        .eq('weight_name', 'historical_time_range_days')
       
       if (error) throw error
       
       toast({
         title: 'Time Range Updated',
-        description: `Historical search range set to ${value.replace('_', ' ')}.`,
+        description: `Historical data range set to ${days} days.`,
       })
     } catch (error: any) {
       toast({
         title: 'Update Failed',
-        description: error.message || 'Failed to update time range setting.',
+        description: error.message || 'Failed to update time range.',
         variant: 'destructive'
       })
     } finally {
@@ -339,552 +333,467 @@ export function Configuration() {
     }
   }
 
-  // Calculate total weight to ensure it equals 1.0
-  const totalWeight = Object.values(weights).reduce((sum, weight) => sum + weight, 0)
-  const isValidTotal = Math.abs(totalWeight - 1.0) < 0.001
+  const getTotalWeight = () => {
+    return Object.values(weights).reduce((sum, value) => sum + value, 0)
+  }
 
-  if (weightsLoading) {
-    return (
-      <div className="space-y-6">
-        <div className="h-8 bg-gray-700 rounded w-1/3 animate-skeleton"></div>
-        {[1, 2].map((i) => (
-          <Card key={i}>
-            <CardHeader>
-              <div className="h-6 bg-gray-700 rounded w-1/4 animate-skeleton"></div>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {[1, 2, 3, 4].map((j) => (
-                  <div key={j} className="h-16 bg-gray-700 rounded animate-skeleton"></div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-    )
+  const isValidWeightSum = () => {
+    const total = getTotalWeight()
+    return Math.abs(total - 1.0) < 0.01 // Allow small rounding errors
   }
 
   return (
-    <div className="space-y-6 animate-fade-in">
-      {/* Header */}
-      <div className="flex items-center justify-between">
+    <div className="px-6 py-8 space-y-6">
+      <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-white">System Configuration</h1>
-          <p className="text-gray-400 mt-1">
-            Configure scoring weights, API keys, and data source settings
+          <h1 className="text-2xl font-bold text-white">
+            System Configuration
+          </h1>
+          <p className="text-gray-400">
+            Manage AI settings, API keys, and system parameters
           </p>
         </div>
-        <div className="flex items-center space-x-3">
-          {hasChanges && (
-            <Badge variant="warning" className="animate-pulse">
-              Unsaved Changes
-            </Badge>
-          )}
-          <Button
-            variant="outline"
-            onClick={handleResetDefaults}
-            disabled={updateWeightMutation.isPending}
-          >
-            <RotateCcw className="w-4 h-4 mr-2" />
-            Reset Defaults
-          </Button>
-          <Button
-            onClick={handleSaveChanges}
-            disabled={!hasChanges || !isValidTotal || updateWeightMutation.isPending}
-          >
-            <Save className="w-4 h-4 mr-2" />
-            {updateWeightMutation.isPending ? 'Saving...' : 'Save Changes'}
-          </Button>
-        </div>
+        <Badge variant="outline" className="text-red-500 border-red-500">
+          Admin Mode
+        </Badge>
       </div>
 
-      {/* Weight Validation Alert */}
-      {!isValidTotal && Object.keys(weights).length > 0 && (
-        <Card className="border-red-500 bg-red-500/10">
-          <CardContent className="pt-6">
-            <div className="flex items-center space-x-2">
-              <AlertCircle className="w-5 h-5 text-red-400" />
-              <div>
-                <h4 className="font-medium text-red-400">Invalid Weight Configuration</h4>
-                <p className="text-sm text-red-300">
-                  Total weights must equal 1.0 (currently: {totalWeight.toFixed(3)})
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Historical Time Range Control */}
-      <Card>
+      {/* User Management Card */}
+      <Card className="bg-gray-800 border-gray-700">
         <CardHeader>
-          <CardTitle className="flex items-center space-x-2">
-            <History className="w-5 h-5 text-primary" />
-            <span>Historical Data Collection Range</span>
-            <Badge variant="secondary" className="ml-2">
-              <Calendar className="w-3 h-3 mr-1" />
-              Admin Setting
-            </Badge>
+          <CardTitle className="text-white flex items-center">
+            <Gift className="mr-2 h-5 w-5 text-yellow-500" />
+            User Management
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="space-y-4">
-            <p className="text-sm text-gray-400">
-              Control how far back the system searches for app ideas and startup trends.
-              This affects data collection algorithms for Smart App Ideas discovery and market intelligence.
-            </p>
-            
-            <div className="space-y-3">
-              <Label className="text-sm font-medium text-white">Time Range for Historical Search</Label>
-              <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-                {[
-                  { value: '1_week', label: '1 Week', description: 'Most recent trends only' },
-                  { value: '1_month', label: '1 Month', description: 'Balanced recency vs coverage' },
-                  { value: '3_months', label: '3 Months', description: 'Broader trend analysis' },
-                  { value: '6_months', label: '6 Months', description: 'Comprehensive insights' },
-                  { value: '1_year', label: '1 Year', description: 'Full historical context' }
-                ].map((option) => (
-                  <div key={option.value} className="space-y-2">
-                    <Button
-                      variant={historicalTimeRange === option.value ? 'default' : 'outline'}
-                      size="sm"
-                      onClick={() => handleTimeRangeChange(option.value)}
-                      disabled={savingTimeRange}
-                      className={`w-full justify-center ${
-                        historicalTimeRange === option.value 
-                          ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white' 
-                          : ''
-                      }`}
-                    >
-                      {savingTimeRange ? (
-                        <Clock className="w-3 h-3 mr-1 animate-spin" />
-                      ) : (
-                        <Calendar className="w-3 h-3 mr-1" />
-                      )}
-                      {option.label}
-                    </Button>
-                    <p className="text-xs text-gray-500 text-center">
-                      {option.description}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Impact Information */}
-            <div className="mt-6 p-4 bg-blue-500/10 border border-blue-500/20 rounded-lg">
-              <div className="flex items-start space-x-2">
-                <AlertCircle className="w-5 h-5 text-blue-400 mt-0.5" />
-                <div>
-                  <h4 className="font-medium text-blue-400">Impact on Data Collection</h4>
-                  <p className="text-sm text-blue-300 mt-1">
-                    This setting affects the historical backfill process and determines how far back 
-                    the system searches across Reddit, Indie Hackers, GitHub, and other sources for 
-                    app ideas and market trends. Longer ranges provide more comprehensive insights 
-                    but may include less relevant historical data.
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
+          <GiftTierManager />
         </CardContent>
       </Card>
-
-      {/* API Keys Management */}
-      <Card>
+      
+      {/* Scoring Weights Card */}
+      <Card className="bg-gray-800 border-gray-700">
         <CardHeader>
-          <CardTitle className="flex items-center space-x-2">
-            <Key className="w-5 h-5 text-primary" />
-            <span>API Keys Management</span>
-            <Badge variant="secondary" className="ml-2">
-              <Shield className="w-3 h-3 mr-1" />
-              Secure
-            </Badge>
+          <CardTitle className="text-white flex items-center">
+            <Sliders className="mr-2 h-5 w-5 text-blue-500" />
+            AI Scoring Weights
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="space-y-6">
-            <p className="text-sm text-gray-400">
-              Securely configure API keys for enhanced data collection and AI-powered analysis. 
-              All keys are encrypted and stored securely.
-            </p>
-            
-            <div className="grid gap-6">
-              {/* OpenAI API Key */}
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <Label className="text-sm font-medium text-white">OpenAI API Key</Label>
-                    <p className="text-xs text-gray-400">
-                      Required for AI-powered painpoint analysis and sentiment scoring
-                    </p>
-                  </div>
-                  {getApiKeyStatus('openai') && (
-                    <div className="flex items-center space-x-2">
-                      {getApiKeyStatus('openai')?.isActive ? (
-                        <>
-                          <CheckCircle className="w-4 h-4 text-green-400" />
-                          <span className="text-xs text-green-400">Connected</span>
-                        </>
-                      ) : (
-                        <>
-                          <XCircle className="w-4 h-4 text-red-400" />
-                          <span className="text-xs text-red-400">Not Connected</span>
-                        </>
-                      )}
-                    </div>
-                  )}
-                </div>
-                <div className="flex space-x-2">
-                  <div className="relative flex-1">
-                    <Input
-                      type={showApiKeys.openai ? 'text' : 'password'}
-                      placeholder="sk-proj-... or sk-..."
-                      value={apiKeys.openai}
-                      onChange={(e) => handleApiKeyChange('openai', e.target.value)}
-                      className="pr-10"
-                    />
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="absolute right-1 top-1 h-8 w-8 p-0"
-                      onClick={() => toggleApiKeyVisibility('openai')}
-                    >
-                      {showApiKeys.openai ? (
-                        <EyeOff className="w-4 h-4" />
-                      ) : (
-                        <Eye className="w-4 h-4" />
-                      )}
-                    </Button>
-                  </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleTestApiKey('openai')}
-                    disabled={testingKeys.openai || !apiKeys.openai}
-                  >
-                    <TestTube className="w-4 h-4 mr-1" />
-                    {testingKeys.openai ? 'Testing...' : 'Test'}
-                  </Button>
-                  <Button
-                    size="sm"
-                    onClick={() => handleSaveApiKey('openai')}
-                    disabled={savingKeys.openai || !apiKeys.openai}
-                  >
-                    <Save className="w-4 h-4 mr-1" />
-                    {savingKeys.openai ? 'Saving...' : 'Save'}
-                  </Button>
-                </div>
-              </div>
-
-              {/* GitHub Personal Access Token */}
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <Label className="text-sm font-medium text-white">GitHub Personal Access Token</Label>
-                    <p className="text-xs text-gray-400">
-                      For GitHub Issues and repository analysis
-                    </p>
-                  </div>
-                  {getApiKeyStatus('github') && (
-                    <div className="flex items-center space-x-2">
-                      {getApiKeyStatus('github')?.isActive ? (
-                        <>
-                          <CheckCircle className="w-4 h-4 text-green-400" />
-                          <span className="text-xs text-green-400">Connected</span>
-                        </>
-                      ) : (
-                        <>
-                          <XCircle className="w-4 h-4 text-red-400" />
-                          <span className="text-xs text-red-400">Not Connected</span>
-                        </>
-                      )}
-                    </div>
-                  )}
-                </div>
-                <div className="flex space-x-2">
-                  <div className="relative flex-1">
-                    <Input
-                      type={showApiKeys.github ? 'text' : 'password'}
-                      placeholder="ghp_... or github_pat_..."
-                      value={apiKeys.github}
-                      onChange={(e) => handleApiKeyChange('github', e.target.value)}
-                      className="pr-10"
-                    />
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="absolute right-1 top-1 h-8 w-8 p-0"
-                      onClick={() => toggleApiKeyVisibility('github')}
-                    >
-                      {showApiKeys.github ? (
-                        <EyeOff className="w-4 h-4" />
-                      ) : (
-                        <Eye className="w-4 h-4" />
-                      )}
-                    </Button>
-                  </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleTestApiKey('github')}
-                    disabled={testingKeys.github || !apiKeys.github}
-                  >
-                    <TestTube className="w-4 h-4 mr-1" />
-                    {testingKeys.github ? 'Testing...' : 'Test'}
-                  </Button>
-                  <Button
-                    size="sm"
-                    onClick={() => handleSaveApiKey('github')}
-                    disabled={savingKeys.github || !apiKeys.github}
-                  >
-                    <Save className="w-4 h-4 mr-1" />
-                    {savingKeys.github ? 'Saving...' : 'Save'}
-                  </Button>
-                </div>
-              </div>
-
-              {/* SERPAPI Key */}
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <Label className="text-sm font-medium text-white">SERPAPI Key</Label>
-                    <p className="text-xs text-gray-400">
-                      For Google Trends and web search (user mentioned already added)
-                    </p>
-                  </div>
-                  {getApiKeyStatus('serpapi') && (
-                    <div className="flex items-center space-x-2">
-                      {getApiKeyStatus('serpapi')?.isActive ? (
-                        <>
-                          <CheckCircle className="w-4 h-4 text-green-400" />
-                          <span className="text-xs text-green-400">Connected</span>
-                        </>
-                      ) : (
-                        <>
-                          <XCircle className="w-4 h-4 text-red-400" />
-                          <span className="text-xs text-red-400">Not Connected</span>
-                        </>
-                      )}
-                    </div>
-                  )}
-                </div>
-                <div className="flex space-x-2">
-                  <div className="relative flex-1">
-                    <Input
-                      type={showApiKeys.serpapi ? 'text' : 'password'}
-                      placeholder="Your SERPAPI key"
-                      value={apiKeys.serpapi}
-                      onChange={(e) => handleApiKeyChange('serpapi', e.target.value)}
-                      className="pr-10"
-                    />
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="absolute right-1 top-1 h-8 w-8 p-0"
-                      onClick={() => toggleApiKeyVisibility('serpapi')}
-                    >
-                      {showApiKeys.serpapi ? (
-                        <EyeOff className="w-4 h-4" />
-                      ) : (
-                        <Eye className="w-4 h-4" />
-                      )}
-                    </Button>
-                  </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleTestApiKey('serpapi')}
-                    disabled={testingKeys.serpapi || !apiKeys.serpapi}
-                  >
-                    <TestTube className="w-4 h-4 mr-1" />
-                    {testingKeys.serpapi ? 'Testing...' : 'Test'}
-                  </Button>
-                  <Button
-                    size="sm"
-                    onClick={() => handleSaveApiKey('serpapi')}
-                    disabled={savingKeys.serpapi || !apiKeys.serpapi}
-                  >
-                    <Save className="w-4 h-4 mr-1" />
-                    {savingKeys.serpapi ? 'Saving...' : 'Save'}
-                  </Button>
-                </div>
-              </div>
+          {weightsLoading ? (
+            <div className="flex justify-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
             </div>
-
-            {/* Security Notice */}
-            <div className="mt-6 p-4 bg-blue-500/10 border border-blue-500/20 rounded-lg">
-              <div className="flex items-start space-x-2">
-                <Shield className="w-5 h-5 text-blue-400 mt-0.5" />
-                <div>
-                  <h4 className="font-medium text-blue-400">Security Information</h4>
-                  <p className="text-sm text-blue-300 mt-1">
-                    All API keys are encrypted and stored securely. Keys are never exposed in the frontend 
-                    and are only accessible by authorized backend services.
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Scoring Weights Configuration */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center space-x-2">
-            <Sliders className="w-5 h-5 text-primary" />
-            <span>Scoring Algorithm Weights</span>
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-6">
-            <p className="text-sm text-gray-400">
-              Adjust the importance of each factor in the overall scoring algorithm. 
-              All weights must sum to 1.0 (100%).
-            </p>
-            
-            <div className="space-y-4">
-              {scoringWeights?.map((weight) => {
-                const currentValue = weights[weight.weight_name] || 0
-                const percentage = Math.round(currentValue * 100)
-                
-                return (
-                  <div key={weight.weight_name} className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <label className="text-sm font-medium text-white capitalize">
-                          {weight.weight_name.replace('_', ' ')}
-                        </label>
-                        <p className="text-xs text-gray-400">
-                          {weight.description}
-                        </p>
-                      </div>
-                      <div className="text-right">
-                        <div className="text-lg font-bold text-white">
-                          {percentage}%
-                        </div>
-                        <div className="text-xs text-gray-400">
-                          {currentValue.toFixed(3)}
-                        </div>
-                      </div>
+          ) : (
+            <>
+              <div className="grid grid-cols-2 gap-4 mb-6">
+                {Object.entries(weights).map(([weightName, value]) => (
+                  <div key={weightName} className="space-y-2">
+                    <div className="flex justify-between">
+                      <Label htmlFor={weightName} className="text-gray-300 capitalize">
+                        {weightName.replace(/_/g, ' ')}
+                      </Label>
+                      <span className="text-sm text-gray-400">{(value * 100).toFixed(0)}%</span>
                     </div>
-                    
-                    <div className="relative">
+                    <div className="grid grid-cols-6 gap-2 items-center">
                       <input
+                        id={weightName}
                         type="range"
                         min="0"
                         max="1"
-                        step="0.01"
-                        value={currentValue}
-                        onChange={(e) => handleWeightChange(weight.weight_name, parseFloat(e.target.value))}
-                        className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer slider"
+                        step="0.05"
+                        value={value}
+                        onChange={(e) => handleWeightChange(weightName, parseFloat(e.target.value))}
+                        className="col-span-5"
                       />
-                      <div className="flex justify-between text-xs text-gray-500 mt-1">
-                        <span>0%</span>
-                        <span>50%</span>
-                        <span>100%</span>
-                      </div>
+                      <Input
+                        type="number"
+                        min="0"
+                        max="1"
+                        step="0.05"
+                        value={value}
+                        onChange={(e) => handleWeightChange(weightName, parseFloat(e.target.value))}
+                        className="w-full bg-gray-700 border-gray-600 text-white text-sm"
+                      />
                     </div>
                   </div>
-                )
-              })}
-            </div>
-            
-            {/* Total Weight Display */}
-            <div className="mt-6 p-4 bg-gray-700 rounded-lg">
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium text-gray-300">Total Weight</span>
+                ))}
+              </div>
+              
+              <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center space-x-2">
-                  {isValidTotal ? (
-                    <CheckCircle className="w-4 h-4 text-green-400" />
-                  ) : (
-                    <XCircle className="w-4 h-4 text-red-400" />
+                  <span className="text-sm text-gray-400">Total Weight:</span>
+                  <Badge 
+                    variant={isValidWeightSum() ? 'default' : 'destructive'}
+                    className={isValidWeightSum() ? 'bg-green-600' : ''}
+                  >
+                    {getTotalWeight().toFixed(2)}
+                  </Badge>
+                  {!isValidWeightSum() && (
+                    <span className="text-xs text-red-500">
+                      Total must equal 1.0
+                    </span>
                   )}
-                  <span className={`text-lg font-bold ${
-                    isValidTotal ? 'text-green-400' : 'text-red-400'
-                  }`}>
-                    {totalWeight.toFixed(3)}
-                  </span>
-                  <span className="text-sm text-gray-400">/ 1.000</span>
+                </div>
+                <div className="flex space-x-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleResetDefaults}
+                    className="text-gray-300 border-gray-600"
+                  >
+                    <RotateCcw className="w-4 h-4 mr-2" />
+                    Reset Defaults
+                  </Button>
+                  <Button
+                    disabled={!hasChanges || !isValidWeightSum() || updateWeightMutation.isPending}
+                    onClick={handleSaveChanges}
+                    size="sm"
+                  >
+                    <Save className="w-4 h-4 mr-2" />
+                    Save Changes
+                  </Button>
                 </div>
               </div>
+            </>
+          )}
+        </CardContent>
+      </Card>
+      
+      {/* API Keys Card */}
+      <Card className="bg-gray-800 border-gray-700">
+        <CardHeader>
+          <CardTitle className="text-white flex items-center">
+            <Key className="mr-2 h-5 w-5 text-blue-500" />
+            API Keys & Services
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-6">
+            {/* OpenAI API Key */}
+            <div className="p-4 bg-gray-700 rounded-lg">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center">
+                  <div className="w-8 h-8 bg-green-900 rounded-full flex items-center justify-center mr-3">
+                    <span className="text-white font-semibold">AI</span>
+                  </div>
+                  <div>
+                    <h3 className="text-white font-medium">OpenAI API Key</h3>
+                    <p className="text-sm text-gray-400">Used for GPT-4 analysis</p>
+                  </div>
+                </div>
+                {getApiKeyStatus('openai') && (
+                  <Badge 
+                    variant={getApiKeyStatus('openai').isValid ? 'default' : 'destructive'}
+                    className={getApiKeyStatus('openai').isValid ? 'bg-green-600' : 'bg-red-600'}
+                  >
+                    {getApiKeyStatus('openai').isValid ? 'Valid' : 'Invalid'}
+                  </Badge>
+                )}
+              </div>
+              
+              <div className="flex space-x-2 mb-2">
+                <div className="flex-1 relative">
+                  <Input
+                    type={showApiKeys.openai ? 'text' : 'password'} 
+                    placeholder="Enter OpenAI API key"
+                    value={apiKeys.openai}
+                    onChange={(e) => handleApiKeyChange('openai', e.target.value)}
+                    className="w-full bg-gray-800 border-gray-600 text-white pr-10"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => toggleApiKeyVisibility('openai')}
+                    className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-white"
+                  >
+                    {showApiKeys.openai ? (
+                      <EyeOff className="h-4 w-4" />
+                    ) : (
+                      <Eye className="h-4 w-4" />
+                    )}
+                  </button>
+                </div>
+                <Button
+                  variant="outline"
+                  className="text-gray-300 border-gray-600"
+                  onClick={() => handleTestApiKey('openai')}
+                  disabled={testingKeys.openai}
+                >
+                  {testingKeys.openai ? (
+                    <div className="animate-spin h-4 w-4 border-b-2 border-white rounded-full" />
+                  ) : (
+                    <TestTube className="w-4 h-4" />
+                  )}
+                  <span className="ml-2">Test</span>
+                </Button>
+                <Button
+                  onClick={() => handleSaveApiKey('openai')}
+                  disabled={savingKeys.openai}
+                >
+                  {savingKeys.openai ? (
+                    <div className="animate-spin h-4 w-4 border-b-2 border-white rounded-full" />
+                  ) : (
+                    <Save className="w-4 h-4" />
+                  )}
+                  <span className="ml-2">Save</span>
+                </Button>
+              </div>
+              
+              {getApiKeyStatus('openai') && getApiKeyStatus('openai').lastChecked && (
+                <p className="text-xs text-gray-500">
+                  Last checked: {new Date(getApiKeyStatus('openai').lastChecked).toLocaleString()}
+                </p>
+              )}
+            </div>
+            
+            {/* GitHub API Key */}
+            <div className="p-4 bg-gray-700 rounded-lg">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center">
+                  <div className="w-8 h-8 bg-purple-900 rounded-full flex items-center justify-center mr-3">
+                    <span className="text-white font-semibold">GH</span>
+                  </div>
+                  <div>
+                    <h3 className="text-white font-medium">GitHub API Key</h3>
+                    <p className="text-sm text-gray-400">Used for repository analysis</p>
+                  </div>
+                </div>
+                {getApiKeyStatus('github') && (
+                  <Badge 
+                    variant={getApiKeyStatus('github').isValid ? 'default' : 'destructive'}
+                    className={getApiKeyStatus('github').isValid ? 'bg-green-600' : 'bg-red-600'}
+                  >
+                    {getApiKeyStatus('github').isValid ? 'Valid' : 'Invalid'}
+                  </Badge>
+                )}
+              </div>
+              
+              <div className="flex space-x-2 mb-2">
+                <div className="flex-1 relative">
+                  <Input
+                    type={showApiKeys.github ? 'text' : 'password'} 
+                    placeholder="Enter GitHub API key"
+                    value={apiKeys.github}
+                    onChange={(e) => handleApiKeyChange('github', e.target.value)}
+                    className="w-full bg-gray-800 border-gray-600 text-white pr-10"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => toggleApiKeyVisibility('github')}
+                    className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-white"
+                  >
+                    {showApiKeys.github ? (
+                      <EyeOff className="h-4 w-4" />
+                    ) : (
+                      <Eye className="h-4 w-4" />
+                    )}
+                  </button>
+                </div>
+                <Button
+                  variant="outline"
+                  className="text-gray-300 border-gray-600"
+                  onClick={() => handleTestApiKey('github')}
+                  disabled={testingKeys.github}
+                >
+                  {testingKeys.github ? (
+                    <div className="animate-spin h-4 w-4 border-b-2 border-white rounded-full" />
+                  ) : (
+                    <TestTube className="w-4 h-4" />
+                  )}
+                  <span className="ml-2">Test</span>
+                </Button>
+                <Button
+                  onClick={() => handleSaveApiKey('github')}
+                  disabled={savingKeys.github}
+                >
+                  {savingKeys.github ? (
+                    <div className="animate-spin h-4 w-4 border-b-2 border-white rounded-full" />
+                  ) : (
+                    <Save className="w-4 h-4" />
+                  )}
+                  <span className="ml-2">Save</span>
+                </Button>
+              </div>
+              
+              {getApiKeyStatus('github') && getApiKeyStatus('github').lastChecked && (
+                <p className="text-xs text-gray-500">
+                  Last checked: {new Date(getApiKeyStatus('github').lastChecked).toLocaleString()}
+                </p>
+              )}
+            </div>
+            
+            {/* SerpAPI Key */}
+            <div className="p-4 bg-gray-700 rounded-lg">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center">
+                  <div className="w-8 h-8 bg-blue-900 rounded-full flex items-center justify-center mr-3">
+                    <span className="text-white font-semibold">SE</span>
+                  </div>
+                  <div>
+                    <h3 className="text-white font-medium">SerpAPI Key</h3>
+                    <p className="text-sm text-gray-400">Used for market research</p>
+                  </div>
+                </div>
+                {getApiKeyStatus('serpapi') && (
+                  <Badge 
+                    variant={getApiKeyStatus('serpapi').isValid ? 'default' : 'destructive'}
+                    className={getApiKeyStatus('serpapi').isValid ? 'bg-green-600' : 'bg-red-600'}
+                  >
+                    {getApiKeyStatus('serpapi').isValid ? 'Valid' : 'Invalid'}
+                  </Badge>
+                )}
+              </div>
+              
+              <div className="flex space-x-2 mb-2">
+                <div className="flex-1 relative">
+                  <Input
+                    type={showApiKeys.serpapi ? 'text' : 'password'} 
+                    placeholder="Enter SerpAPI key"
+                    value={apiKeys.serpapi}
+                    onChange={(e) => handleApiKeyChange('serpapi', e.target.value)}
+                    className="w-full bg-gray-800 border-gray-600 text-white pr-10"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => toggleApiKeyVisibility('serpapi')}
+                    className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-white"
+                  >
+                    {showApiKeys.serpapi ? (
+                      <EyeOff className="h-4 w-4" />
+                    ) : (
+                      <Eye className="h-4 w-4" />
+                    )}
+                  </button>
+                </div>
+                <Button
+                  variant="outline"
+                  className="text-gray-300 border-gray-600"
+                  onClick={() => handleTestApiKey('serpapi')}
+                  disabled={testingKeys.serpapi}
+                >
+                  {testingKeys.serpapi ? (
+                    <div className="animate-spin h-4 w-4 border-b-2 border-white rounded-full" />
+                  ) : (
+                    <TestTube className="w-4 h-4" />
+                  )}
+                  <span className="ml-2">Test</span>
+                </Button>
+                <Button
+                  onClick={() => handleSaveApiKey('serpapi')}
+                  disabled={savingKeys.serpapi}
+                >
+                  {savingKeys.serpapi ? (
+                    <div className="animate-spin h-4 w-4 border-b-2 border-white rounded-full" />
+                  ) : (
+                    <Save className="w-4 h-4" />
+                  )}
+                  <span className="ml-2">Save</span>
+                </Button>
+              </div>
+              
+              {getApiKeyStatus('serpapi') && getApiKeyStatus('serpapi').lastChecked && (
+                <p className="text-xs text-gray-500">
+                  Last checked: {new Date(getApiKeyStatus('serpapi').lastChecked).toLocaleString()}
+                </p>
+              )}
             </div>
           </div>
         </CardContent>
       </Card>
-
-      {/* Data Sources Status */}
-      <Card>
+      
+      {/* Historical Data Settings */}
+      <Card className="bg-gray-800 border-gray-700">
         <CardHeader>
-          <CardTitle className="flex items-center space-x-2">
-            <Database className="w-5 h-5 text-primary" />
-            <span>Data Sources</span>
+          <CardTitle className="text-white flex items-center">
+            <Database className="mr-2 h-5 w-5 text-blue-500" />
+            Historical Data Settings
           </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            <p className="text-sm text-gray-400">
-              Monitor the status and configuration of data collection sources.
-            </p>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {[
-                { name: 'Product Hunt', status: 'active', lastSync: '2 hours ago', frequency: '24h' },
-                { name: 'TechCrunch', status: 'active', lastSync: '1 hour ago', frequency: '12h' },
-                { name: 'Reddit Startups', status: 'active', lastSync: '30 minutes ago', frequency: '6h' },
-                { name: 'AngelList', status: 'active', lastSync: '4 hours ago', frequency: '24h' },
-                { name: 'VentureBeat', status: 'active', lastSync: '1 hour ago', frequency: '12h' }
-              ].map((source) => (
-                <div key={source.name} className="p-4 border border-gray-700 rounded-lg">
-                  <div className="flex items-center justify-between mb-2">
-                    <h4 className="font-medium text-white">{source.name}</h4>
-                    <Badge variant={source.status === 'active' ? 'success' : 'destructive'}>
-                      {source.status}
-                    </Badge>
-                  </div>
-                  <div className="space-y-1 text-sm text-gray-400">
-                    <div className="flex items-center justify-between">
-                      <span>Last Sync:</span>
-                      <span>{source.lastSync}</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span>Frequency:</span>
-                      <span>{source.frequency}</span>
-                    </div>
-                  </div>
-                </div>
-              ))}
+            <div>
+              <Label className="block text-gray-300 mb-2">
+                Historical Data Time Range
+              </Label>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  variant={historicalTimeRange === '1_week' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => handleTimeRangeChange('1_week')}
+                  disabled={savingTimeRange}
+                  className={historicalTimeRange !== '1_week' ? 'text-gray-300 border-gray-600' : ''}
+                >
+                  1 Week
+                </Button>
+                <Button
+                  variant={historicalTimeRange === '1_month' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => handleTimeRangeChange('1_month')}
+                  disabled={savingTimeRange}
+                  className={historicalTimeRange !== '1_month' ? 'text-gray-300 border-gray-600' : ''}
+                >
+                  1 Month
+                </Button>
+                <Button
+                  variant={historicalTimeRange === '3_months' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => handleTimeRangeChange('3_months')}
+                  disabled={savingTimeRange}
+                  className={historicalTimeRange !== '3_months' ? 'text-gray-300 border-gray-600' : ''}
+                >
+                  3 Months
+                </Button>
+                <Button
+                  variant={historicalTimeRange === '6_months' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => handleTimeRangeChange('6_months')}
+                  disabled={savingTimeRange}
+                  className={historicalTimeRange !== '6_months' ? 'text-gray-300 border-gray-600' : ''}
+                >
+                  6 Months
+                </Button>
+                <Button
+                  variant={historicalTimeRange === '1_year' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => handleTimeRangeChange('1_year')}
+                  disabled={savingTimeRange}
+                  className={historicalTimeRange !== '1_year' ? 'text-gray-300 border-gray-600' : ''}
+                >
+                  1 Year
+                </Button>
+              </div>
+              <p className="text-sm text-gray-400 mt-2">
+                Affects how far back the system looks for historical data and trends.
+              </p>
             </div>
           </div>
         </CardContent>
       </Card>
-
-      {/* System Status */}
-      <Card>
+      
+      {/* System Status Card */}
+      <Card className="bg-gray-800 border-gray-700">
         <CardHeader>
-          <CardTitle className="flex items-center space-x-2">
-            <Activity className="w-5 h-5 text-primary" />
-            <span>System Status</span>
+          <CardTitle className="text-white flex items-center">
+            <Activity className="mr-2 h-5 w-5 text-blue-500" />
+            System Status & Monitoring
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-3 gap-4">
             <div className="text-center p-4 bg-gray-700 rounded-lg">
               <div className="w-12 h-12 bg-green-500 rounded-full flex items-center justify-center mx-auto mb-2">
                 <CheckCircle className="w-6 h-6 text-white" />
               </div>
-              <div className="text-sm font-medium text-white">Data Collection</div>
-              <div className="text-xs text-green-400">Active</div>
+              <div className="text-sm font-medium text-white">System Health</div>
+              <div className="text-xs text-green-400">All Systems Normal</div>
             </div>
             
             <div className="text-center p-4 bg-gray-700 rounded-lg">
-              <div className="w-12 h-12 bg-green-500 rounded-full flex items-center justify-center mx-auto mb-2">
-                <CheckCircle className="w-6 h-6 text-white" />
+              <div className="w-12 h-12 bg-yellow-500 rounded-full flex items-center justify-center mx-auto mb-2">
+                <History className="w-6 h-6 text-white" />
               </div>
-              <div className="text-sm font-medium text-white">Analysis Engine</div>
-              <div className="text-xs text-green-400">Running</div>
+              <div className="text-sm font-medium text-white">Last Analysis</div>
+              <div className="text-xs text-yellow-400">Today, 6:00 AM</div>
             </div>
             
             <div className="text-center p-4 bg-gray-700 rounded-lg">
